@@ -1,13 +1,13 @@
 "use server";
 
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // Ленивая инициализация клиентов для избежания ошибок при загрузке модуля
-let supabaseAdminInstance: ReturnType<typeof createClient> | null = null;
+let supabaseAdminInstance: SupabaseClient | null = null;
 let s3ClientInstance: S3Client | null = null;
 
-function getSupabaseAdmin() {
+function getSupabaseAdmin(): SupabaseClient {
   if (!supabaseAdminInstance) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

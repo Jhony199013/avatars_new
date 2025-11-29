@@ -1,11 +1,11 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // Ленивая инициализация клиента для избежания ошибок при загрузке модуля
-let supabaseAdminInstance: ReturnType<typeof createClient> | null = null;
+let supabaseAdminInstance: SupabaseClient | null = null;
 
-function getSupabaseAdmin() {
+function getSupabaseAdmin(): SupabaseClient {
   if (!supabaseAdminInstance) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
