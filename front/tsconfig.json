@@ -18,23 +18,17 @@
         "name": "next"
       }
     ],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./front/*"]
+      "@/*": ["./*"]
     }
   },
   "include": [
-    "front/**/*.ts",
-    "front/**/*.tsx",
-    "front/next-env.d.ts"
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
   ],
-  "exclude": [
-    "node_modules",
-    "app",
-    "docker",
-    ".next",
-    "out",
-    "build"
-  ]
+  "exclude": ["node_modules"]
 }
-

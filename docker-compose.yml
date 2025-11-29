@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+        HEYGEN_API_KEY: ${HEYGEN_API_KEY}
+    container_name: avatars_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
+    restart: unless-stopped
+    networks:
+      - avatars_network
+
+  # backend:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/backend/Dockerfile
+  #   container_name: avatars_backend
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - NODE_ENV=production
+  #   restart: unless-stopped
+  #   networks:
+  #     - avatars_network
+  #
+  # worker:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/worker/Dockerfile
+  #   container_name: avatars_worker
+  #   environment:
+  #     - NODE_ENV=production
+  #   restart: unless-stopped
+  #   networks:
+  #     - avatars_network
+
+networks:
+  avatars_network:
+    driver: bridge

@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Avatars New
 
-## Getting Started
+Next.js приложение для работы с аватарами.
 
-First, run the development server:
+## Требования
+
+- Node.js 20 или выше
+- npm или yarn
+
+## Установка
+
+Установите зависимости (из корня проекта):
+
+```bash
+npm install
+```
+
+Или из папки `front`:
+
+```bash
+cd front
+npm install
+```
+
+## Настройка переменных окружения
+
+Создайте файл `.env.local` в папке `front` со следующими переменными:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+HEYGEN_API_KEY=your_heygen_api_key
+```
+
+## Запуск приложения
+
+### Режим разработки
+
+Из корня проекта выполните:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Или из папки `front`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cd front
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Приложение будет доступно по адресу [http://localhost:3000](http://localhost:3000)
 
-## Learn More
+### Сборка для продакшена
 
-To learn more about Next.js, take a look at the following resources:
+Из корня проекта:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run build
+npm start
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Быстрый запуск (Windows)
 
-## Deploy on Vercel
+Вы можете использовать скрипт `start.bat` из корня проекта:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+start.bat
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Этот скрипт автоматически перейдет в папку `front`, установит зависимости (если нужно) и запустит сервер разработки.
