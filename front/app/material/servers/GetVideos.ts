@@ -49,7 +49,13 @@ export async function GetVideos(uid: string): Promise<GetVideosResult> {
     }
 
     // Обновляем статус на "error" для видео текущего пользователя старше 3 часов без URL
-    await UpdateVideoStatusToError(uid.trim());
+    // Не прерываем выполнение, если обновление статуса не удалось
+    try {
+      await UpdateVideoStatusToError(uid.trim());
+    } catch (statusError) {
+      console.warn("[GetVideos] Не удалось обновить статус видео:", statusError);
+      // Продолжаем выполнение даже если обновление статуса не удалось
+    }
 
     const { data, error } = await supabaseAdmin
       .from("videos")
