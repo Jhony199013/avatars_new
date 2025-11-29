@@ -16,21 +16,20 @@ if (!supabaseServiceRoleKey) {
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-// S3 конфигурация из переменных окружения
-const s3AccessKeyId = process.env.S3_ACCESS_KEY_ID;
-const s3SecretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
-const s3Endpoint = process.env.S3_ENDPOINT;
-const s3Bucket = process.env.S3_BUCKET;
-
-if (!s3AccessKeyId || !s3SecretAccessKey || !s3Endpoint || !s3Bucket) {
-  throw new Error("S3 переменные окружения не заданы");
+// Функция-помощник для проверки и получения обязательных переменных окружения
+function getRequiredEnv(key: string): string {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`${key} не задан`);
+  }
+  return value;
 }
 
-// Создаем константы с гарантированными типами после проверки
-const S3_ENDPOINT: string = s3Endpoint;
-const S3_BUCKET: string = s3Bucket;
-const S3_ACCESS_KEY_ID: string = s3AccessKeyId;
-const S3_SECRET_ACCESS_KEY: string = s3SecretAccessKey;
+// S3 конфигурация из переменных окружения
+const S3_ACCESS_KEY_ID = getRequiredEnv("S3_ACCESS_KEY_ID");
+const S3_SECRET_ACCESS_KEY = getRequiredEnv("S3_SECRET_ACCESS_KEY");
+const S3_ENDPOINT = getRequiredEnv("S3_ENDPOINT");
+const S3_BUCKET = getRequiredEnv("S3_BUCKET");
 
 // Создаем S3 клиент
 const s3Client = new S3Client({
