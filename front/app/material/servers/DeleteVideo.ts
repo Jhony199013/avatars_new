@@ -2,6 +2,7 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { logServerEvent, logServerError } from "@/lib/serverLogger";
 
 // Ленивая инициализация клиентов для избежания ошибок при загрузке модуля
 let supabaseAdminInstance: SupabaseClient | null = null;
@@ -108,6 +109,11 @@ export async function DeleteVideo(
   videoUrl?: string | null,
 ): Promise<DeleteVideoResult> {
   try {
+    logServerEvent("DeleteVideo", "Received delete request", {
+      uid,
+      videoTitle,
+      hasUrlOverride: Boolean(videoUrl),
+    });
     if (!uid || !uid.trim()) {
       return { success: false, error: "UUID пользователя не может быть пустым" };
     }
@@ -127,12 +133,23 @@ export async function DeleteVideo(
       .single();
 
     if (fetchError) {
+      logServerError("DeleteVideo", fetchError, {
+        stage: "fetch video record",
+        uid,
+        videoTitle,
+      });
       console.error("[DeleteVideo] Ошибка получения видео из БД:", fetchError);
       return { success: false, error: fetchError.message };
     }
 
     // Используем URL из БД, если он есть, иначе используем переданный URL
     const urlToDelete = videoData?.url || videoUrl;
+    logServerEvent("DeleteVideo", "Resolved URL for deletion", {
+      uid,
+      videoTitle,
+      urlFromDb: Boolean(videoData?.url),
+      hasUrlToDelete: Boolean(urlToDelete),
+    });
 
     // Удаляем файл из S3 перед удалением записи из БД
     if (urlToDelete && urlToDelete.trim()) {
@@ -146,8 +163,17 @@ export async function DeleteVideo(
             Key: s3Key,
           });
           await s3Client.send(command);
+          logServerEvent("DeleteVideo", "Deleted video file from S3", {
+            s3Key,
+            bucket: s3Bucket,
+          });
           console.log("[DeleteVideo] Видео успешно удалено из S3:", s3Key);
         } catch (s3Error) {
+          logServerError("DeleteVideo", s3Error, {
+            stage: "s3 delete",
+            uid,
+            videoTitle,
+          });
           // Логируем ошибку, но продолжаем удаление записи из БД
           console.error("[DeleteVideo] Ошибка удаления видео из S3:", s3Error);
           // Если файл не найден - это не критично, возможно он уже был удален
@@ -169,12 +195,22 @@ export async function DeleteVideo(
       .eq("uid", uid.trim());
 
     if (error) {
+      logServerError("DeleteVideo", error, {
+        stage: "delete db record",
+        uid,
+        videoTitle,
+      });
       console.error("[DeleteVideo] Ошибка удаления видео из БД:", error);
       return { success: false, error: error.message };
     }
 
+    logServerEvent("DeleteVideo", "Deleted DB record", {
+      uid,
+      videoTitle,
+    });
     return { success: true };
   } catch (error) {
+    logServerError("DeleteVideo", error, { uid, videoTitle });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка сервера";
     console.error("[DeleteVideo]", message);

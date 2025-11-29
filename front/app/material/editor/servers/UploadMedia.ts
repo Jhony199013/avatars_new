@@ -2,6 +2,7 @@
 
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { logServerEvent, logServerError } from "@/lib/serverLogger";
 
 // Ленивая инициализация клиентов для избежания ошибок при загрузке модуля
 let supabaseAdminInstance: SupabaseClient | null = null;
@@ -98,6 +99,10 @@ export async function UploadMedia(
   userUuid: string,
 ): Promise<UploadMediaResult> {
   try {
+    logServerEvent("UploadMedia", "Received upload request", {
+      hasFile: Boolean(file),
+      userUuid,
+    });
     if (!file) {
       return { success: false, error: "Файл не предоставлен" };
     }
@@ -114,6 +119,7 @@ export async function UploadMedia(
 
     // Путь в S3: temp/media/{uuid}/{filename}
     const s3Key = `temp/media/${userUuid.trim()}/${fileName}`;
+    logServerEvent("UploadMedia", "Prepared S3 key", { s3Key });
 
     // Читаем файл как буфер
     const arrayBuffer = await file.arrayBuffer();
@@ -135,10 +141,17 @@ export async function UploadMedia(
     });
 
     await s3Client.send(command);
+    logServerEvent("UploadMedia", "Uploaded file to S3", {
+      s3Key,
+      bucket: s3Bucket,
+      contentType,
+      size: buffer.byteLength,
+    });
 
     // Формируем публичный URL файла
     const baseUrl = s3Endpoint.replace(/\/$/, "");
     const url = `${baseUrl}/${s3Bucket}/${s3Key}`;
+    logServerEvent("UploadMedia", "Generated public URL", { url });
 
     return {
       success: true,
@@ -146,6 +159,10 @@ export async function UploadMedia(
       key: s3Key,
     };
   } catch (error) {
+    logServerError("UploadMedia", error, {
+      userUuid,
+      fileName: file?.name,
+    });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка при загрузке файла";
     console.error("[UploadMedia] Ошибка загрузки медиа:", message);

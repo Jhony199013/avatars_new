@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { logServerEvent, logServerError } from "@/lib/serverLogger";
 
 // Ленивая инициализация клиента для избежания ошибок при загрузке модуля
 let supabaseAdminInstance: SupabaseClient | null = null;
@@ -58,6 +59,11 @@ export async function CreateVideoTemp(
   uid: string,
 ): Promise<CreateVideoTempResult> {
   try {
+    logServerEvent("CreateVideoTemp", "Incoming request", {
+      uid,
+      videoTitle,
+      hasCanvasInfo: Boolean(canvasInfo),
+    });
     if (!videoTitle || !videoTitle.trim()) {
       return { success: false, error: "Название видео не может быть пустым" };
     }
@@ -83,6 +89,11 @@ export async function CreateVideoTemp(
       .single();
 
     if (error) {
+      logServerError("CreateVideoTemp", error, {
+        stage: "insert video_temp",
+        uid,
+        videoTitle,
+      });
       console.error("[CreateVideoTemp] Ошибка при создании записи:", error);
       return { success: false, error: error.message };
     }
@@ -91,8 +102,14 @@ export async function CreateVideoTemp(
       return { success: false, error: "Не удалось получить ID созданной записи" };
     }
 
+    logServerEvent("CreateVideoTemp", "Created temp record", {
+      uid,
+      videoTitle,
+      recordId: data.id,
+    });
     return { success: true, id: data.id };
   } catch (error) {
+    logServerError("CreateVideoTemp", error, { uid, videoTitle });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка сервера";
     console.error("[CreateVideoTemp]", message);
@@ -111,6 +128,7 @@ export async function CreateVideo(
   videoTitle: string,
 ): Promise<CreateVideoResult> {
   try {
+    logServerEvent("CreateVideo", "Incoming request", { uid, videoTitle });
     if (!uid || !uid.trim()) {
       return { success: false, error: "UUID пользователя не может быть пустым" };
     }
@@ -132,6 +150,11 @@ export async function CreateVideo(
       .single();
 
     if (error) {
+      logServerError("CreateVideo", error, {
+        stage: "insert videos",
+        uid,
+        videoTitle,
+      });
       console.error("[CreateVideo] Ошибка при создании записи:", error);
       return { success: false, error: error.message };
     }
@@ -140,8 +163,14 @@ export async function CreateVideo(
       return { success: false, error: "Не удалось получить ID созданной записи" };
     }
 
+    logServerEvent("CreateVideo", "Created video record", {
+      uid,
+      videoTitle,
+      recordId: data.id,
+    });
     return { success: true, id: data.id };
   } catch (error) {
+    logServerError("CreateVideo", error, { uid, videoTitle });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка сервера";
     console.error("[CreateVideo]", message);

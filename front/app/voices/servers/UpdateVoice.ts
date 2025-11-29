@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { logServerEvent, logServerError } from "@/lib/serverLogger";
 
 // Ленивая инициализация клиента для избежания ошибок при загрузке модуля
 let supabaseAdminInstance: SupabaseClient | null = null;
@@ -42,6 +43,7 @@ export async function UpdateVoice({
   description,
 }: UpdateVoiceInput): Promise<UpdateVoiceResult> {
   try {
+    logServerEvent("UpdateVoice", "Incoming request", { uid, voiceId });
     if (!uid) {
       return { success: false, error: "Пользователь не найден" };
     }
@@ -68,11 +70,18 @@ export async function UpdateVoice({
       .eq("uid", uid);
 
     if (error) {
+      logServerError("UpdateVoice", error, {
+        stage: "update voice record",
+        uid,
+        voiceId,
+      });
       throw new Error(error.message);
     }
 
+    logServerEvent("UpdateVoice", "Updated voice", { uid, voiceId });
     return { success: true };
   } catch (error) {
+    logServerError("UpdateVoice", error, { uid, voiceId });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка";
     console.error("[UpdateVoice]", message);

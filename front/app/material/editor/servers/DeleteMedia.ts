@@ -1,6 +1,7 @@
 "use server";
 
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { logServerEvent, logServerError } from "@/lib/serverLogger";
 
 // Ленивая инициализация клиента для избежания ошибок при загрузке модуля
 let s3ClientInstance: S3Client | null = null;
@@ -60,6 +61,7 @@ export type DeleteMediaResult = DeleteMediaSuccess | DeleteMediaFailure;
  */
 export async function DeleteMedia(s3Key: string): Promise<DeleteMediaResult> {
   try {
+    logServerEvent("DeleteMedia", "Received delete request", { s3Key });
     if (!s3Key || !s3Key.trim()) {
       return { success: false, error: "S3 ключ не может быть пустым" };
     }
@@ -74,9 +76,14 @@ export async function DeleteMedia(s3Key: string): Promise<DeleteMediaResult> {
     });
 
     await s3Client.send(command);
+    logServerEvent("DeleteMedia", "Deleted object from S3", {
+      bucket: s3Bucket,
+      s3Key,
+    });
 
     return { success: true };
   } catch (error) {
+    logServerError("DeleteMedia", error, { s3Key });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка при удалении файла";
     console.error("[DeleteMedia] Ошибка удаления медиа:", message);

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { logServerEvent, logServerError } from "@/lib/serverLogger";
 
 // Ленивая инициализация клиента для избежания ошибок при загрузке модуля
 let supabaseAdminInstance: SupabaseClient | null = null;
@@ -34,6 +35,7 @@ export interface UpdateVideoStatusResult {
  */
 export async function UpdateVideoStatusToError(uid: string): Promise<UpdateVideoStatusResult> {
   try {
+    logServerEvent("UpdateVideoStatusToError", "Incoming request", { uid });
     if (!uid || !uid.trim()) {
       return { success: false, error: "UUID пользователя не может быть пустым" };
     }
@@ -51,12 +53,18 @@ export async function UpdateVideoStatusToError(uid: string): Promise<UpdateVideo
       .lt("created_at", threeHoursAgo);
 
     if (error) {
+      logServerError("UpdateVideoStatusToError", error, {
+        stage: "update statuses",
+        uid,
+      });
       console.error("[UpdateVideoStatusToError] Ошибка обновления статуса:", error);
       return { success: false, error: error.message };
     }
 
+    logServerEvent("UpdateVideoStatusToError", "Updated stale videos", { uid });
     return { success: true };
   } catch (error) {
+    logServerError("UpdateVideoStatusToError", error, { uid });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка сервера";
     console.error("[UpdateVideoStatusToError]", message);

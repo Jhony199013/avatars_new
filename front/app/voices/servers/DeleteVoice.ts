@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { logServerEvent, logServerError } from "@/lib/serverLogger";
 
 // Ленивая инициализация клиента для избежания ошибок при загрузке модуля
 let supabaseAdminInstance: SupabaseClient | null = null;
@@ -38,6 +39,7 @@ export async function DeleteVoice({
   voiceId,
 }: DeleteVoiceInput): Promise<DeleteVoiceResult> {
   try {
+    logServerEvent("DeleteVoice", "Incoming request", { uid, voiceId });
     if (!uid) {
       return { success: false, error: "Пользователь не найден" };
     }
@@ -56,6 +58,11 @@ export async function DeleteVoice({
       .single();
 
     if (fetchError) {
+      logServerError("DeleteVoice", fetchError, {
+        stage: "fetch voice",
+        uid,
+        voiceId,
+      });
       throw new Error(`Не удалось найти голос: ${fetchError.message}`);
     }
 
@@ -81,6 +88,7 @@ export async function DeleteVoice({
 
     if (!webhookResponse.ok) {
       const message = await webhookResponse.text();
+      logServerError("DeleteVoice", message, { stage: "webhook", uid, voiceId });
       throw new Error(
         `Не удалось отправить вебхук: ${
           message || webhookResponse.statusText
@@ -96,11 +104,18 @@ export async function DeleteVoice({
       .eq("uid", uid);
 
     if (error) {
+      logServerError("DeleteVoice", error, {
+        stage: "delete voice record",
+        uid,
+        voiceId,
+      });
       throw new Error(error.message);
     }
 
+    logServerEvent("DeleteVoice", "Deleted voice", { uid, voiceId });
     return { success: true };
   } catch (error) {
+    logServerError("DeleteVoice", error, { uid, voiceId });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка";
     console.error("[DeleteVoice]", message);

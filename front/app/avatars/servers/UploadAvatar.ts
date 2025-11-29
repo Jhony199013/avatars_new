@@ -2,6 +2,7 @@
 
 import { Buffer } from "buffer";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { logServerEvent, logServerError } from "@/lib/serverLogger";
 
 export interface PhotoAvatarRow {
   id?: string;
@@ -59,6 +60,11 @@ function getHeygenApiKey(): string {
 async function uploadPhotoToHeygen(file: File) {
   const heygenApiKey = getHeygenApiKey();
 
+  logServerEvent("UploadAvatar", "Uploading file to Heygen", {
+    fileName: file.name,
+    size: file.size,
+    type: file.type,
+  });
   const buffer = Buffer.from(await file.arrayBuffer());
   const response = await fetch("https://upload.heygen.com/v1/asset", {
     method: "POST",
@@ -93,6 +99,7 @@ async function uploadPhotoToHeygen(file: File) {
 async function createPhotoAvatarInHeygen(name: string, imageKey: string) {
   const heygenApiKey = getHeygenApiKey();
 
+  logServerEvent("UploadAvatar", "Creating Heygen avatar", { name, imageKey });
   const response = await fetch(
     "https://api.heygen.com/v2/photo_avatar/avatar_group/create",
     {
@@ -126,6 +133,11 @@ async function createPhotoAvatarInHeygen(name: string, imageKey: string) {
 
 export async function UploadAvatar(formData: FormData): Promise<UploadAvatarResult> {
   try {
+    logServerEvent("UploadAvatar", "Received upload request", {
+      hasUid: formData.has("uid"),
+      hasName: formData.has("avatar_name"),
+      hasFile: formData.has("photo"),
+    });
     const uid = formData.get("uid");
     const name = formData.get("avatar_name");
     const file = formData.get("photo");
@@ -149,6 +161,11 @@ export async function UploadAvatar(formData: FormData): Promise<UploadAvatarResu
       trimmedName,
       imageKey
     );
+    logServerEvent("UploadAvatar", "Heygen avatar creation result", {
+      uid,
+      name: trimmedName,
+      heygenError: createResult.error ?? null,
+    });
 
     const status: "done" | "error" = createResult.error ? "error" : "done";
     const record: PhotoAvatarRow = {
@@ -173,11 +190,24 @@ export async function UploadAvatar(formData: FormData): Promise<UploadAvatarResu
       .single();
 
     if (error) {
+      logServerError("UploadAvatar", error, {
+        stage: "insert photo_avatars",
+        uid,
+        name: trimmedName,
+      });
       throw new Error(error.message);
     }
 
+    logServerEvent("UploadAvatar", "Inserted avatar record", {
+      uid,
+      recordId: data.id,
+    });
     return { success: true, avatar: data as PhotoAvatarRow };
   } catch (error) {
+    logServerError("UploadAvatar", error, {
+      hasUid: formData?.has?.("uid"),
+      hasFile: formData?.has?.("photo"),
+    });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка сервера";
     console.error("[UploadAvatar]", message);

@@ -2,6 +2,7 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { UpdateVideoStatusToError } from "./UpdateVideoStatus";
+import { logServerEvent, logServerError } from "@/lib/serverLogger";
 
 // Ленивая инициализация клиента для избежания ошибок при загрузке модуля
 let supabaseAdminInstance: SupabaseClient | null = null;
@@ -52,6 +53,7 @@ export type GetVideosResult = GetVideosSuccess | GetVideosFailure;
  */
 export async function GetVideos(uid: string): Promise<GetVideosResult> {
   try {
+    logServerEvent("GetVideos", "Start fetching videos", { uid });
     if (!uid || !uid.trim()) {
       return { success: false, error: "UUID пользователя не может быть пустым" };
     }
@@ -60,7 +62,9 @@ export async function GetVideos(uid: string): Promise<GetVideosResult> {
     // Не прерываем выполнение, если обновление статуса не удалось
     try {
       await UpdateVideoStatusToError(uid.trim());
+      logServerEvent("GetVideos", "Updated stale videos to error", { uid });
     } catch (statusError) {
+      logServerError("GetVideos", statusError, { stage: "UpdateVideoStatusToError", uid });
       console.warn("[GetVideos] Не удалось обновить статус видео:", statusError);
       // Продолжаем выполнение даже если обновление статуса не удалось
     }
@@ -73,12 +77,18 @@ export async function GetVideos(uid: string): Promise<GetVideosResult> {
       .order("created_at", { ascending: false });
 
     if (error) {
+      logServerError("GetVideos", error, { stage: "fetch videos", uid });
       console.error("[GetVideos] Ошибка при получении видео:", error);
       return { success: false, error: error.message };
     }
 
+    logServerEvent("GetVideos", "Successfully fetched videos", {
+      uid,
+      count: data?.length ?? 0,
+    });
     return { success: true, videos: data || [] };
   } catch (error) {
+    logServerError("GetVideos", error, { uid });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка сервера";
     console.error("[GetVideos]", message);

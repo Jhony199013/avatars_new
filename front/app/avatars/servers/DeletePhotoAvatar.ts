@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { logServerEvent, logServerError } from "@/lib/serverLogger";
 
 // Ленивая инициализация клиента для избежания ошибок при загрузке модуля
 let supabaseAdminInstance: SupabaseClient | null = null;
@@ -49,6 +50,7 @@ async function deleteFromHeygen(groupId?: string | null) {
   }
 
   const heygenApiKey = getHeygenApiKey();
+  logServerEvent("DeletePhotoAvatar", "Deleting avatar in Heygen", { groupId });
 
   const response = await fetch(
     `https://api.heygen.com/v2/photo_avatar_group/${groupId}`,
@@ -75,6 +77,12 @@ export async function DeletePhotoAvatar({
   imageKey,
 }: DeletePhotoAvatarInput): Promise<DeletePhotoAvatarResult> {
   try {
+    logServerEvent("DeletePhotoAvatar", "Received delete request", {
+      uid,
+      recordId,
+      groupId,
+      imageKey,
+    });
     if (!uid) {
       return { success: false, error: "Пользователь не найден" };
     }
@@ -99,11 +107,25 @@ export async function DeletePhotoAvatar({
     const { error } = await query;
 
     if (error) {
+      logServerError("DeletePhotoAvatar", error, {
+        stage: "delete photo_avatars",
+        uid,
+        recordId,
+        groupId,
+        imageKey,
+      });
       throw new Error(error.message);
     }
 
+    logServerEvent("DeletePhotoAvatar", "Deleted avatar records", {
+      uid,
+      recordId,
+      groupId,
+      imageKey,
+    });
     return { success: true };
   } catch (error) {
+    logServerError("DeletePhotoAvatar", error, { uid, recordId, groupId, imageKey });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка";
     console.error("[DeletePhotoAvatar]", message);

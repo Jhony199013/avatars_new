@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { logServerEvent, logServerError } from "@/lib/serverLogger";
 
 // Ленивая инициализация клиента для избежания ошибок при загрузке модуля
 let supabaseAdminInstance: SupabaseClient | null = null;
@@ -40,6 +41,7 @@ export async function UpdateAvatarName({
   newName,
 }: UpdateAvatarNameInput): Promise<UpdateAvatarNameResult> {
   try {
+    logServerEvent("UpdateAvatarName", "Incoming request", { uid, recordId });
     if (!uid) {
       return { success: false, error: "Пользователь не найден" };
     }
@@ -62,11 +64,21 @@ export async function UpdateAvatarName({
       .eq("uid", uid);
 
     if (error) {
+      logServerError("UpdateAvatarName", error, {
+        stage: "update photo_avatars",
+        uid,
+        recordId,
+      });
       throw new Error(error.message);
     }
 
+    logServerEvent("UpdateAvatarName", "Updated avatar name", {
+      uid,
+      recordId,
+    });
     return { success: true };
   } catch (error) {
+    logServerError("UpdateAvatarName", error, { uid, recordId });
     const message =
       error instanceof Error ? error.message : "Неизвестная ошибка";
     console.error("[UpdateAvatarName]", message);
