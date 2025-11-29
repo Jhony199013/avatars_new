@@ -26,13 +26,19 @@ if (!s3AccessKeyId || !s3SecretAccessKey || !s3Endpoint || !s3Bucket) {
   throw new Error("S3 переменные окружения не заданы");
 }
 
+// Создаем константы с гарантированными типами после проверки
+const S3_ENDPOINT: string = s3Endpoint;
+const S3_BUCKET: string = s3Bucket;
+const S3_ACCESS_KEY_ID: string = s3AccessKeyId;
+const S3_SECRET_ACCESS_KEY: string = s3SecretAccessKey;
+
 // Создаем S3 клиент
 const s3Client = new S3Client({
-  endpoint: s3Endpoint,
+  endpoint: S3_ENDPOINT,
   region: "us-east-1", // Регион по умолчанию для S3-совместимых хранилищ
   credentials: {
-    accessKeyId: s3AccessKeyId,
-    secretAccessKey: s3SecretAccessKey,
+    accessKeyId: S3_ACCESS_KEY_ID,
+    secretAccessKey: S3_SECRET_ACCESS_KEY,
   },
   forcePathStyle: true, // Для S3-совместимых хранилищ
 });
@@ -87,7 +93,7 @@ export async function UploadMedia(
 
     // Загружаем файл в S3
     const command = new PutObjectCommand({
-      Bucket: s3Bucket,
+      Bucket: S3_BUCKET,
       Key: s3Key,
       Body: buffer,
       ContentType: contentType,
@@ -96,8 +102,8 @@ export async function UploadMedia(
     await s3Client.send(command);
 
     // Формируем публичный URL файла
-    const baseUrl = s3Endpoint!.replace(/\/$/, "");
-    const url = `${baseUrl}/${s3Bucket}/${s3Key}`;
+    const baseUrl = S3_ENDPOINT.replace(/\/$/, "");
+    const url = `${baseUrl}/${S3_BUCKET}/${s3Key}`;
 
     return {
       success: true,
