@@ -96,7 +96,7 @@ export async function UploadMedia(
     await s3Client.send(command);
 
     // Формируем публичный URL файла
-    const baseUrl = s3Endpoint.replace(/\/$/, "");
+    const baseUrl = s3Endpoint!.replace(/\/$/, "");
     const url = `${baseUrl}/${s3Bucket}/${s3Key}`;
 
     return {

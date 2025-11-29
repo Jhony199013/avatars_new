@@ -10,16 +10,25 @@ services:
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
         HEYGEN_API_KEY: ${HEYGEN_API_KEY}
+        S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+        S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+        S3_ENDPOINT: ${S3_ENDPOINT}
+        S3_BUCKET: ${S3_BUCKET}
+
     container_name: avatars_frontend
+
     ports:
       - "3000:3000"
+
+    # берет .env из корня проекта
+    env_file:
+      - .env
+
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
-      HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
+
     restart: unless-stopped
+
     networks:
       - avatars_network
 
@@ -30,19 +39,23 @@ services:
   #   container_name: avatars_backend
   #   ports:
   #     - "8000:8000"
+  #   env_file:
+  #     - .env
   #   environment:
-  #     - NODE_ENV=production
+  #     NODE_ENV: production
   #   restart: unless-stopped
   #   networks:
   #     - avatars_network
-  #
+
   # worker:
   #   build:
   #     context: .
   #     dockerfile: docker/worker/Dockerfile
   #   container_name: avatars_worker
+  #   env_file:
+  #     - .env
   #   environment:
-  #     - NODE_ENV=production
+  #     NODE_ENV: production
   #   restart: unless-stopped
   #   networks:
   #     - avatars_network
