@@ -2,26 +2,45 @@
 
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
-// S3 конфигурация из переменных окружения
-const s3AccessKeyId = process.env.S3_ACCESS_KEY_ID;
-const s3SecretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
-const s3Endpoint = process.env.S3_ENDPOINT;
-const s3Bucket = process.env.S3_BUCKET;
+// Ленивая инициализация клиента для избежания ошибок при загрузке модуля
+let s3ClientInstance: S3Client | null = null;
 
-if (!s3AccessKeyId || !s3SecretAccessKey || !s3Endpoint || !s3Bucket) {
-  throw new Error("S3 переменные окружения не заданы");
+function getS3Client() {
+  if (!s3ClientInstance) {
+    const s3AccessKeyId = process.env.S3_ACCESS_KEY_ID;
+    const s3SecretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+    const s3Endpoint = process.env.S3_ENDPOINT;
+
+    if (!s3AccessKeyId) {
+      throw new Error("S3_ACCESS_KEY_ID не задан");
+    }
+    if (!s3SecretAccessKey) {
+      throw new Error("S3_SECRET_ACCESS_KEY не задан");
+    }
+    if (!s3Endpoint) {
+      throw new Error("S3_ENDPOINT не задан");
+    }
+
+    s3ClientInstance = new S3Client({
+      endpoint: s3Endpoint,
+      region: "us-east-1",
+      credentials: {
+        accessKeyId: s3AccessKeyId,
+        secretAccessKey: s3SecretAccessKey,
+      },
+      forcePathStyle: true,
+    });
+  }
+  return s3ClientInstance;
 }
 
-// Создаем S3 клиент
-const s3Client = new S3Client({
-  endpoint: s3Endpoint,
-  region: "us-east-1", // Регион по умолчанию для S3-совместимых хранилищ
-  credentials: {
-    accessKeyId: s3AccessKeyId,
-    secretAccessKey: s3SecretAccessKey,
-  },
-  forcePathStyle: true, // Для S3-совместимых хранилищ
-});
+function getS3Bucket(): string {
+  const s3Bucket = process.env.S3_BUCKET;
+  if (!s3Bucket) {
+    throw new Error("S3_BUCKET не задан");
+  }
+  return s3Bucket;
+}
 
 export interface DeleteMediaSuccess {
   success: true;
@@ -46,6 +65,9 @@ export async function DeleteMedia(s3Key: string): Promise<DeleteMediaResult> {
     }
 
     // Удаляем файл из S3
+    const s3Client = getS3Client();
+    const s3Bucket = getS3Bucket();
+    
     const command = new DeleteObjectCommand({
       Bucket: s3Bucket,
       Key: s3Key.trim(),

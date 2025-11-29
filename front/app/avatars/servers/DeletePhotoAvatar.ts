@@ -2,19 +2,34 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const heygenApiKey = process.env.HEYGEN_API_KEY;
+// Ленивая инициализация клиента для избежания ошибок при загрузке модуля
+let supabaseAdminInstance: ReturnType<typeof createClient> | null = null;
 
-if (!supabaseUrl) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL не задан");
+function getSupabaseAdmin() {
+  if (!supabaseAdminInstance) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl) {
+      throw new Error("NEXT_PUBLIC_SUPABASE_URL не задан");
+    }
+
+    if (!supabaseServiceRoleKey) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY не задан");
+    }
+
+    supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceRoleKey);
+  }
+  return supabaseAdminInstance;
 }
 
-if (!supabaseServiceRoleKey) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY не задан");
+function getHeygenApiKey(): string {
+  const heygenApiKey = process.env.HEYGEN_API_KEY;
+  if (!heygenApiKey) {
+    throw new Error("HEYGEN_API_KEY не задан");
+  }
+  return heygenApiKey;
 }
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 interface DeletePhotoAvatarInput {
   uid: string;
@@ -33,9 +48,7 @@ async function deleteFromHeygen(groupId?: string | null) {
     return;
   }
 
-  if (!heygenApiKey) {
-    throw new Error("HEYGEN_API_KEY не задан");
-  }
+  const heygenApiKey = getHeygenApiKey();
 
   const response = await fetch(
     `https://api.heygen.com/v2/photo_avatar_group/${groupId}`,
@@ -72,6 +85,7 @@ export async function DeletePhotoAvatar({
 
     await deleteFromHeygen(groupId);
 
+    const supabaseAdmin = getSupabaseAdmin();
     let query = supabaseAdmin.from("photo_avatars").delete().eq("uid", uid);
 
     if (recordId) {

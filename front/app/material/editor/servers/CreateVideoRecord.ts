@@ -2,18 +2,26 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Ленивая инициализация клиента для избежания ошибок при загрузке модуля
+let supabaseAdminInstance: ReturnType<typeof createClient> | null = null;
 
-if (!supabaseUrl) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL не задан");
+function getSupabaseAdmin() {
+  if (!supabaseAdminInstance) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl) {
+      throw new Error("NEXT_PUBLIC_SUPABASE_URL не задан");
+    }
+
+    if (!supabaseServiceRoleKey) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY не задан");
+    }
+
+    supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceRoleKey);
+  }
+  return supabaseAdminInstance;
 }
-
-if (!supabaseServiceRoleKey) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY не задан");
-}
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 // Интерфейсы для CreateVideoTemp
 export interface CreateVideoTempSuccess {
@@ -63,6 +71,7 @@ export async function CreateVideoTemp(
     }
 
     // Сохраняем canvasInfo как JSON
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from("video_temp")
       .insert({
@@ -111,6 +120,7 @@ export async function CreateVideo(
     }
 
     // Создаем запись в таблице videos со статусом "generate"
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from("videos")
       .insert({

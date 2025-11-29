@@ -3,44 +3,76 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Ленивая инициализация клиентов для избежания ошибок при загрузке модуля
+let supabaseAdminInstance: ReturnType<typeof createClient> | null = null;
+let s3ClientInstance: S3Client | null = null;
 
-if (!supabaseUrl) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL не задан");
-}
+function getSupabaseAdmin() {
+  if (!supabaseAdminInstance) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseServiceRoleKey) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY не задан");
-}
+    if (!supabaseUrl) {
+      throw new Error("NEXT_PUBLIC_SUPABASE_URL не задан");
+    }
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+    if (!supabaseServiceRoleKey) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY не задан");
+    }
 
-// Функция-помощник для проверки и получения обязательных переменных окружения
-function getRequiredEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) {
-    throw new Error(`${key} не задан`);
+    supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceRoleKey);
   }
-  return value;
+  return supabaseAdminInstance;
 }
 
-// S3 конфигурация из переменных окружения
-const S3_ACCESS_KEY_ID = getRequiredEnv("S3_ACCESS_KEY_ID");
-const S3_SECRET_ACCESS_KEY = getRequiredEnv("S3_SECRET_ACCESS_KEY");
-const S3_ENDPOINT = getRequiredEnv("S3_ENDPOINT");
-const S3_BUCKET = getRequiredEnv("S3_BUCKET");
+function getS3Client() {
+  if (!s3ClientInstance) {
+    const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
+    const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
+    const S3_ENDPOINT = process.env.S3_ENDPOINT;
+    const S3_BUCKET = process.env.S3_BUCKET;
 
-// Создаем S3 клиент
-const s3Client = new S3Client({
-  endpoint: S3_ENDPOINT,
-  region: "us-east-1", // Регион по умолчанию для S3-совместимых хранилищ
-  credentials: {
-    accessKeyId: S3_ACCESS_KEY_ID,
-    secretAccessKey: S3_SECRET_ACCESS_KEY,
-  },
-  forcePathStyle: true, // Для S3-совместимых хранилищ
-});
+    if (!S3_ACCESS_KEY_ID) {
+      throw new Error("S3_ACCESS_KEY_ID не задан");
+    }
+    if (!S3_SECRET_ACCESS_KEY) {
+      throw new Error("S3_SECRET_ACCESS_KEY не задан");
+    }
+    if (!S3_ENDPOINT) {
+      throw new Error("S3_ENDPOINT не задан");
+    }
+    if (!S3_BUCKET) {
+      throw new Error("S3_BUCKET не задан");
+    }
+
+    s3ClientInstance = new S3Client({
+      endpoint: S3_ENDPOINT,
+      region: "us-east-1",
+      credentials: {
+        accessKeyId: S3_ACCESS_KEY_ID,
+        secretAccessKey: S3_SECRET_ACCESS_KEY,
+      },
+      forcePathStyle: true,
+    });
+  }
+  return s3ClientInstance;
+}
+
+function getS3Bucket(): string {
+  const S3_BUCKET = process.env.S3_BUCKET;
+  if (!S3_BUCKET) {
+    throw new Error("S3_BUCKET не задан");
+  }
+  return S3_BUCKET;
+}
+
+function getS3Endpoint(): string {
+  const S3_ENDPOINT = process.env.S3_ENDPOINT;
+  if (!S3_ENDPOINT) {
+    throw new Error("S3_ENDPOINT не задан");
+  }
+  return S3_ENDPOINT;
+}
 
 export interface UploadMediaSuccess {
   success: true;
@@ -91,8 +123,12 @@ export async function UploadMedia(
     const contentType = file.type || "application/octet-stream";
 
     // Загружаем файл в S3
+    const s3Client = getS3Client();
+    const s3Bucket = getS3Bucket();
+    const s3Endpoint = getS3Endpoint();
+    
     const command = new PutObjectCommand({
-      Bucket: S3_BUCKET,
+      Bucket: s3Bucket,
       Key: s3Key,
       Body: buffer,
       ContentType: contentType,
@@ -101,8 +137,8 @@ export async function UploadMedia(
     await s3Client.send(command);
 
     // Формируем публичный URL файла
-    const baseUrl = S3_ENDPOINT.replace(/\/$/, "");
-    const url = `${baseUrl}/${S3_BUCKET}/${s3Key}`;
+    const baseUrl = s3Endpoint.replace(/\/$/, "");
+    const url = `${baseUrl}/${s3Bucket}/${s3Key}`;
 
     return {
       success: true,

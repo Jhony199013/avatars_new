@@ -27,24 +27,37 @@ interface UploadAvatarFailure {
 
 type UploadAvatarResult = UploadAvatarSuccess | UploadAvatarFailure;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const heygenApiKey = process.env.HEYGEN_API_KEY;
+// Ленивая инициализация клиента для избежания ошибок при загрузке модуля
+let supabaseAdminInstance: ReturnType<typeof createClient> | null = null;
 
-if (!supabaseUrl) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL не задан");
+function getSupabaseAdmin() {
+  if (!supabaseAdminInstance) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl) {
+      throw new Error("NEXT_PUBLIC_SUPABASE_URL не задан");
+    }
+
+    if (!supabaseServiceRoleKey) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY не задан");
+    }
+
+    supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceRoleKey);
+  }
+  return supabaseAdminInstance;
 }
 
-if (!supabaseServiceRoleKey) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY не задан");
-}
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
-
-async function uploadPhotoToHeygen(file: File) {
+function getHeygenApiKey(): string {
+  const heygenApiKey = process.env.HEYGEN_API_KEY;
   if (!heygenApiKey) {
     throw new Error("HEYGEN_API_KEY не задан");
   }
+  return heygenApiKey;
+}
+
+async function uploadPhotoToHeygen(file: File) {
+  const heygenApiKey = getHeygenApiKey();
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const response = await fetch("https://upload.heygen.com/v1/asset", {
@@ -78,9 +91,7 @@ async function uploadPhotoToHeygen(file: File) {
 }
 
 async function createPhotoAvatarInHeygen(name: string, imageKey: string) {
-  if (!heygenApiKey) {
-    throw new Error("HEYGEN_API_KEY не задан");
-  }
+  const heygenApiKey = getHeygenApiKey();
 
   const response = await fetch(
     "https://api.heygen.com/v2/photo_avatar/avatar_group/create",
@@ -154,6 +165,7 @@ export async function UploadAvatar(formData: FormData): Promise<UploadAvatarResu
       status,
     };
 
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from("photo_avatars")
       .insert(record)

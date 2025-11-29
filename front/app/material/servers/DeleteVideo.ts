@@ -3,40 +3,64 @@
 import { createClient } from "@supabase/supabase-js";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
-// Next.js автоматически загружает переменные из .env.local в папке front/
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Ленивая инициализация клиентов для избежания ошибок при загрузке модуля
+let supabaseAdminInstance: ReturnType<typeof createClient> | null = null;
+let s3ClientInstance: S3Client | null = null;
 
-if (!supabaseUrl) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL не задан");
+function getSupabaseAdmin() {
+  if (!supabaseAdminInstance) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl) {
+      throw new Error("NEXT_PUBLIC_SUPABASE_URL не задан");
+    }
+
+    if (!supabaseServiceRoleKey) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY не задан");
+    }
+
+    supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceRoleKey);
+  }
+  return supabaseAdminInstance;
 }
 
-if (!supabaseServiceRoleKey) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY не задан");
+function getS3Client() {
+  if (!s3ClientInstance) {
+    const s3AccessKeyId = process.env.S3_ACCESS_KEY_ID;
+    const s3SecretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+    const s3Endpoint = process.env.S3_ENDPOINT;
+
+    if (!s3AccessKeyId) {
+      throw new Error("S3_ACCESS_KEY_ID не задан");
+    }
+    if (!s3SecretAccessKey) {
+      throw new Error("S3_SECRET_ACCESS_KEY не задан");
+    }
+    if (!s3Endpoint) {
+      throw new Error("S3_ENDPOINT не задан");
+    }
+
+    s3ClientInstance = new S3Client({
+      endpoint: s3Endpoint,
+      region: "us-east-1",
+      credentials: {
+        accessKeyId: s3AccessKeyId,
+        secretAccessKey: s3SecretAccessKey,
+      },
+      forcePathStyle: true,
+    });
+  }
+  return s3ClientInstance;
 }
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
-
-// S3 конфигурация из переменных окружения
-const s3AccessKeyId = process.env.S3_ACCESS_KEY_ID;
-const s3SecretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
-const s3Endpoint = process.env.S3_ENDPOINT;
-const s3Bucket = process.env.S3_BUCKET;
-
-if (!s3AccessKeyId || !s3SecretAccessKey || !s3Endpoint || !s3Bucket) {
-  throw new Error("S3 переменные окружения не заданы");
+function getS3Bucket(): string {
+  const s3Bucket = process.env.S3_BUCKET;
+  if (!s3Bucket) {
+    throw new Error("S3_BUCKET не задан");
+  }
+  return s3Bucket;
 }
-
-// Создаем S3 клиент
-const s3Client = new S3Client({
-  endpoint: s3Endpoint,
-  region: "us-east-1",
-  credentials: {
-    accessKeyId: s3AccessKeyId,
-    secretAccessKey: s3SecretAccessKey,
-  },
-  forcePathStyle: true,
-});
 
 /**
  * Извлекает S3 ключ из URL
@@ -45,6 +69,7 @@ const s3Client = new S3Client({
  */
 function extractS3KeyFromUrl(url: string): string | null {
   try {
+    const s3Bucket = getS3Bucket();
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split("/").filter(Boolean);
     
@@ -93,6 +118,7 @@ export async function DeleteVideo(
 
     // Сначала получаем запись из БД, чтобы извлечь оригинальный URL
     // Это важно, так как URL может быть сформирован по старому названию
+    const supabaseAdmin = getSupabaseAdmin();
     const { data: videoData, error: fetchError } = await supabaseAdmin
       .from("videos")
       .select("url")
@@ -113,6 +139,8 @@ export async function DeleteVideo(
       const s3Key = extractS3KeyFromUrl(urlToDelete.trim());
       if (s3Key) {
         try {
+          const s3Client = getS3Client();
+          const s3Bucket = getS3Bucket();
           const command = new DeleteObjectCommand({
             Bucket: s3Bucket,
             Key: s3Key,
